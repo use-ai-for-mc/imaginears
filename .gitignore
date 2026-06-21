@@ -1,0 +1,13 @@
+.DS_Store
+.dream/
+.gradle/
+.reasonix/
+build/
+logs/
+out/
+.idea/
+.vscode/
+*.class
+*.log
+hs_err_pid*
+replay_pid*

@@ -1,0 +1,7 @@
+*.jar binary
+*.dll binary
+*.exe binary
+src/main/resources/native/macos/status-helper binary
+src/main/resources/native/macos/webview-helper binary
+gradlew text eol=lf
+*.bat text eol=crlf
