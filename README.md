@@ -7,6 +7,7 @@ A small client-side Fabric helper for Imaginears Club on Minecraft 26.1.
 - Auto-requests and opens the Imaginears audio client through a hidden native WebView helper.
 - Detects OpenAudioMC session links from `session.openaudiomc.net` and `audio.imaginears.club`.
 - Adds `/oa connect`, `/oa disconnect`, `/oa reconnect`, and `/oa volume` client commands.
+- Records raw ride profiles to help learn Imaginears ride markers and timings.
 - Releases the mouse cursor while riding vehicles, then restores normal mouse capture afterward.
 - Suppresses most positional Minecraft sounds while riding, while allowing the ride-complete chime.
 - Gates behavior to `iears.us` and `*.iears.us` servers.
@@ -50,6 +51,23 @@ Restart Minecraft after replacing the jar. Fabric only loads mods during client 
 ```
 
 The mod also schedules an automatic `/audio` request shortly after joining an Imaginears server.
+
+## Ride Profiling
+
+Ride profiling starts automatically when you mount a vehicle on Imaginears and writes a JSON file
+when you dismount. Profiles include duration, vehicle position samples, nearby armor-stand model
+items, scoreboard snapshots, and system chat seen during the ride.
+
+```text
+/rideprofile status
+/rideprofile flush
+```
+
+Profile files are written under the Minecraft instance:
+
+```text
+logs/imears-ride-sessions/
+```
 
 ## Releases
 
