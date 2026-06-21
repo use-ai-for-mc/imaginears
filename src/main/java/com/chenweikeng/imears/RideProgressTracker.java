@@ -19,16 +19,21 @@ public final class RideProgressTracker {
   private static final String TRON_REFERENCE_RESOURCE =
       "/assets/imears/rides/tron-lightcycle-reference.json";
   private static final int MARKER_SCAN_INTERVAL_TICKS = 20;
-  private static final double GOOD_MATCH_DISTANCE = 8.0;
-  private static final double ACCEPTABLE_MATCH_DISTANCE = 16.0;
+  private static final double LIVE_DISPATCH_DISTANCE = 1.0;
+  private static final double REFERENCE_DISPATCH_DISTANCE = 1.0;
 
   private static final RideReference TRON_REFERENCE = loadReference();
 
   private static int activeVehicleId = -1;
   private static int scanCooldownTicks = 0;
+  private static boolean hasStationAnchor = false;
+  private static double stationAnchorX;
+  private static double stationAnchorY;
+  private static double stationAnchorZ;
+  private static boolean dispatched = false;
+  private static long dispatchStartedAtMs = 0;
+  private static double activeCountdownDurationSeconds = 0.0;
   private static RideMarkerDetector.RideIdentity activeIdentity;
-  private static Trace activeTrace;
-  private static int lastPointIndex = -1;
   private static Estimate lastEstimate;
 
   private RideProgressTracker() {}
@@ -53,12 +58,14 @@ public final class RideProgressTracker {
     if (vehicle.getId() != activeVehicleId) {
       reset();
       activeVehicleId = vehicle.getId();
+      anchorVehicle(vehicle);
     }
+    updateDispatchState(vehicle);
 
     if (scanCooldownTicks > 0) {
       scanCooldownTicks--;
     }
-    if (activeIdentity == null || scanCooldownTicks <= 0) {
+    if (activeIdentity == null && scanCooldownTicks <= 0) {
       scanCooldownTicks = MARKER_SCAN_INTERVAL_TICKS;
       List<RideMarkerDetector.MarkerInfo> markers =
           RideMarkerDetector.scanMarkers(client, vehicle);
@@ -68,12 +75,10 @@ public final class RideProgressTracker {
 
     if (activeIdentity == null) {
       lastEstimate = null;
-      activeTrace = null;
-      lastPointIndex = -1;
       return;
     }
 
-    lastEstimate = estimate(vehicle, activeIdentity);
+    lastEstimate = estimate(activeIdentity);
   }
 
   public static void reportStatus(Minecraft client) {
@@ -96,72 +101,44 @@ public final class RideProgressTracker {
     return lastEstimate;
   }
 
-  private static Estimate estimate(
-      Entity vehicle, RideMarkerDetector.RideIdentity identity) {
+  private static Estimate estimate(RideMarkerDetector.RideIdentity identity) {
     if (TRON_REFERENCE.traces().isEmpty()) {
       return null;
     }
 
-    Match match = findBestMatch(vehicle.getX(), vehicle.getY(), vehicle.getZ(), identity);
-    if (match == null || match.distance() > ACCEPTABLE_MATCH_DISTANCE) {
+    double duration = movementDurationSeconds(identity.markerDamage());
+    if (duration <= 0.0) {
+      return null;
+    }
+
+    if (!dispatched) {
       return new Estimate(
           identity.rideName(),
           identity.markerDamage(),
           identity.vehicleVariant(),
-          "",
           0,
           0,
-          0,
-          match == null ? -1.0 : match.distance(),
+          duration,
           false);
     }
 
-    activeTrace = match.trace();
-    lastPointIndex = match.pointIndex();
+    if (activeCountdownDurationSeconds <= 0.0) {
+      activeCountdownDurationSeconds = duration;
+    }
+    duration = activeCountdownDurationSeconds;
 
-    double elapsed = match.point().t();
-    double duration = match.trace().durationSeconds();
-    double progress = duration <= 0.0 ? 0.0 : Math.min(100.0, Math.max(0.0, elapsed / duration * 100.0));
+    double elapsed = Math.min(duration, Math.max(0.0, elapsedSinceDispatchSeconds()));
+    double progress = duration <= 0.0 ? 0.0 : Math.min(100.0, elapsed / duration * 100.0);
     double remaining = Math.max(0.0, duration - elapsed);
+
     return new Estimate(
         identity.rideName(),
         identity.markerDamage(),
         identity.vehicleVariant(),
-        match.trace().sourceFile(),
         progress,
         elapsed,
         remaining,
-        match.distance(),
-        match.distance() <= GOOD_MATCH_DISTANCE);
-  }
-
-  private static Match findBestMatch(
-      double x, double y, double z, RideMarkerDetector.RideIdentity identity) {
-    List<Trace> candidates = candidateTraces(identity.markerDamage());
-    if (candidates.isEmpty()) {
-      candidates = TRON_REFERENCE.traces();
-    }
-
-    Match sameTraceMatch = null;
-    if (activeTrace != null && candidates.contains(activeTrace)) {
-      sameTraceMatch = findBestMatchInTrace(activeTrace, x, y, z, Math.max(0, lastPointIndex - 2));
-      if (sameTraceMatch != null && sameTraceMatch.distance() <= GOOD_MATCH_DISTANCE) {
-        return sameTraceMatch;
-      }
-    }
-
-    Match best = null;
-    for (Trace trace : candidates) {
-      int minIndex = trace == activeTrace ? Math.max(0, lastPointIndex - 2) : 0;
-      Match candidate = findBestMatchInTrace(trace, x, y, z, minIndex);
-      if (candidate != null && (best == null || candidate.distance() < best.distance())) {
-        best = candidate;
-      }
-    }
-    if (best != null) {
-      return best;
-    }
-    return sameTraceMatch;
+        true);
   }
 
   private static List<Trace> candidateTraces(int markerDamage) {
@@ -175,25 +152,72 @@ public final class RideProgressTracker {
     return traces.isEmpty() ? TRON_REFERENCE.traces() : traces;
   }
 
-  private static Match findBestMatchInTrace(
-      Trace trace, double x, double y, double z, int minIndex) {
-    Match best = null;
-    List<Point> points = trace.points();
-    for (int i = Math.max(0, minIndex); i < points.size(); i++) {
-      Point point = points.get(i);
-      double distance = distance(point, x, y, z);
-      if (best == null || distance < best.distance()) {
-        best = new Match(trace, point, i, distance);
-      }
-    }
-    return best;
+  private static double distance(Point a, Point b) {
+    double dx = a.x() - b.x();
+    double dy = a.y() - b.y();
+    double dz = a.z() - b.z();
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 
-  private static double distance(Point point, double x, double y, double z) {
-    double dx = point.x() - x;
-    double dy = point.y() - y;
-    double dz = point.z() - z;
+  private static double distance(
+      double ax, double ay, double az, double bx, double by, double bz) {
+    double dx = ax - bx;
+    double dy = ay - by;
+    double dz = az - bz;
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
+  private static void anchorVehicle(Entity vehicle) {
+    stationAnchorX = vehicle.getX();
+    stationAnchorY = vehicle.getY();
+    stationAnchorZ = vehicle.getZ();
+    hasStationAnchor = true;
+    dispatched = false;
+    dispatchStartedAtMs = 0;
+  }
+
+  private static void updateDispatchState(Entity vehicle) {
+    if (!hasStationAnchor) {
+      anchorVehicle(vehicle);
+      return;
+    }
+    if (dispatched) {
+      return;
+    }
+
+    // The station can hold several rows of identical vehicles. Start the timer from the mounted
+    // vehicle's own movement, not from a nearby reference point or a neighboring vehicle.
+    double distanceFromAnchor =
+        distance(
+            vehicle.getX(),
+            vehicle.getY(),
+            vehicle.getZ(),
+            stationAnchorX,
+            stationAnchorY,
+            stationAnchorZ);
+    if (distanceFromAnchor >= LIVE_DISPATCH_DISTANCE) {
+      dispatched = true;
+      dispatchStartedAtMs = System.currentTimeMillis();
+    }
+  }
+
+  private static double elapsedSinceDispatchSeconds() {
+    if (dispatchStartedAtMs <= 0) {
+      return 0.0;
+    }
+    return Math.max(0.0, (System.currentTimeMillis() - dispatchStartedAtMs) / 1000.0);
+  }
+
+  private static double movementDurationSeconds(int markerDamage) {
+    List<Trace> candidates = candidateTraces(markerDamage);
+    if (candidates.isEmpty()) {
+      candidates = TRON_REFERENCE.traces();
+    }
+    return candidates.stream()
+        .mapToDouble(Trace::movingDurationSeconds)
+        .filter(duration -> duration > 0.0)
+        .average()
+        .orElse(0.0);
   }
 
   private static RideReference loadReference() {
@@ -221,13 +245,15 @@ public final class RideProgressTracker {
                     point.getDouble("z")));
           }
           if (!points.isEmpty()) {
+            double duration =
+                profile.optDouble("durationSeconds", points.get(points.size() - 1).t());
+            double dispatchStartSeconds = dispatchStartSeconds(points);
             traces.add(
                 new Trace(
                     profile.optString("sourceFile", "unknown"),
                     profile.optInt("markerDamage", -1),
                     profile.optString("vehicleVariant", ""),
-                    profile.optDouble("durationSeconds", points.get(points.size() - 1).t()),
-                    List.copyOf(points)));
+                    Math.max(0.0, duration - dispatchStartSeconds)));
           }
         }
       }
@@ -241,12 +267,30 @@ public final class RideProgressTracker {
     }
   }
 
+  private static double dispatchStartSeconds(List<Point> points) {
+    if (points.isEmpty()) {
+      return 0.0;
+    }
+    Point origin = points.get(0);
+    for (Point point : points) {
+      if (distance(origin, point) >= REFERENCE_DISPATCH_DISTANCE) {
+        return point.t();
+      }
+    }
+    return 0.0;
+  }
+
   private static void reset() {
     activeVehicleId = -1;
     scanCooldownTicks = 0;
+    hasStationAnchor = false;
+    stationAnchorX = 0.0;
+    stationAnchorY = 0.0;
+    stationAnchorZ = 0.0;
+    dispatched = false;
+    dispatchStartedAtMs = 0;
+    activeCountdownDurationSeconds = 0.0;
     activeIdentity = null;
-    activeTrace = null;
-    lastPointIndex = -1;
     lastEstimate = null;
   }
 
@@ -268,37 +312,31 @@ public final class RideProgressTracker {
       String sourceFile,
       int markerDamage,
       String vehicleVariant,
-      double durationSeconds,
-      List<Point> points) {}
+      double movingDurationSeconds) {}
 
   private record Point(double t, double x, double y, double z) {}
-
-  private record Match(Trace trace, Point point, int pointIndex, double distance) {}
 
   public record Estimate(
       String rideName,
       int markerDamage,
       String vehicleVariant,
-      String sourceFile,
       double progressPercent,
       double elapsedSeconds,
       double remainingSeconds,
-      double matchDistance,
-      boolean confident) {
+      boolean counting) {
     String format() {
-      if (sourceFile == null || sourceFile.isBlank()) {
-        return String.format(
-            "%s detected, but no reference match is close enough (nearest %.1fm).",
-            rideName, matchDistance);
+      if (!counting) {
+        return displayName() + ": waiting for dispatch.";
       }
       return String.format(
-          "%s %s: %.0f%% complete, %s remaining (match %.1fm%s).",
-          rideName,
-          vehicleVariant == null || vehicleVariant.isBlank() ? "" : vehicleVariant,
-          progressPercent,
-          formatSeconds(remainingSeconds),
-          matchDistance,
-          confident ? "" : ", low confidence");
+          "%s: %.0f%% complete, %s remaining.",
+          displayName(), progressPercent, formatSeconds(remainingSeconds));
+    }
+
+    private String displayName() {
+      return vehicleVariant == null || vehicleVariant.isBlank()
+          ? rideName
+          : rideName + " " + vehicleVariant;
     }
   }
 }

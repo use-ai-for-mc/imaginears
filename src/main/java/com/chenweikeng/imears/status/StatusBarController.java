@@ -27,7 +27,7 @@ public final class StatusBarController {
 
   public void tick(Minecraft client) {
     RideProgressTracker.Estimate estimate = RideProgressTracker.lastEstimate();
-    if (estimate == null) {
+    if (estimate == null || !estimate.counting()) {
       sendDesiredText("");
       return;
     }
@@ -61,7 +61,7 @@ public final class StatusBarController {
   }
 
   private static String computeText(RideProgressTracker.Estimate estimate) {
-    if (estimate.sourceFile() == null || estimate.sourceFile().isBlank()) {
+    if (!estimate.counting()) {
       return NO_TIMING_PLACEHOLDER;
     }
     int remaining = Math.max(0, (int) Math.round(estimate.remainingSeconds()));

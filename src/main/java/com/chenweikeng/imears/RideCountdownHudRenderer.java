@@ -25,19 +25,28 @@ public final class RideCountdownHudRenderer {
     }
 
     RideProgressTracker.Estimate estimate = RideProgressTracker.lastEstimate();
-    if (estimate == null || estimate.sourceFile() == null || estimate.sourceFile().isBlank()) {
+    if (estimate == null) {
       return;
     }
 
-    int remainingSeconds = Math.max(0, (int) Math.round(estimate.remainingSeconds()));
-    int progress = Math.min(100, Math.max(0, (int) Math.round(estimate.progressPercent())));
-    String displayText =
-        String.format(
-            Locale.ROOT,
-            "%s (%d%%, %s left)",
-            estimate.rideName(),
-            progress,
-            formatDuration(remainingSeconds));
+    int remainingSeconds;
+    int progress;
+    String displayText;
+    if (estimate.counting()) {
+      remainingSeconds = Math.max(0, (int) Math.round(estimate.remainingSeconds()));
+      progress = Math.min(100, Math.max(0, (int) Math.round(estimate.progressPercent())));
+      displayText =
+          String.format(
+              Locale.ROOT,
+              "%s (%d%%, %s left)",
+              estimate.rideName(),
+              progress,
+              formatDuration(remainingSeconds));
+    } else {
+      remainingSeconds = Integer.MAX_VALUE;
+      progress = 0;
+      displayText = estimate.rideName() + " (waiting for dispatch)";
+    }
 
     Font font = client.font;
     int timeColor = opaque(timeColor(remainingSeconds));

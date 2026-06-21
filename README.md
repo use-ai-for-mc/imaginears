@@ -66,6 +66,11 @@ MCParks Experience: ride name, percent complete, time left, and a slim colored p
 same remaining-time countdown is also sent to the native status helper, which appears as a macOS
 menu bar item or Windows taskbar-adjacent overlay while a TRON estimate is active.
 
+The countdown starts from the mounted vehicle's own dispatch movement, not from the moment you sit
+down. Once started, it runs as a fixed timer from the learned moving-segment duration rather than
+continuing to adjust from vehicle location. This keeps the station/platform dwell from consuming
+ride time and avoids neighboring queued vehicles in the same row set from advancing your countdown.
+
 ```text
 /tron status
 /tron reset
