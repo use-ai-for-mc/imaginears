@@ -75,6 +75,30 @@ Profile files are written under the Minecraft instance:
 logs/imears-ride-sessions/
 ```
 
+## TRON Progress
+
+TRON Lightcycle progress tracking uses the collected `tron-lightcycle` ride profiles as reference
+paths. While you are sitting on a recognized TRON vehicle, the tracker matches the current vehicle
+position against the nearest reference path for that vehicle marker variant and estimates progress
+and remaining time.
+
+```text
+/tron status
+/tron reset
+```
+
+The bundled reference data is stored at:
+
+```text
+assets/imears/rides/tron-lightcycle-reference.json
+```
+
+To regenerate it after collecting more profiles:
+
+```bash
+python3 tools/build-tron-reference.py "/path/to/minecraft/logs/imears-ride-sessions"
+```
+
 ## HUD Visibility
 
 The helper can hide the same core HUD elements that IMF exposes for cleaner ride capture. Open the

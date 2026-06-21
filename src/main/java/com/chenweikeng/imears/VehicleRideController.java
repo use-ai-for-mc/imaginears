@@ -40,6 +40,7 @@ public final class VehicleRideController {
     tickWindowMinimize(client, onVehicle);
     tickNotRidingAlert(client, onVehicle);
     RideProfiler.tick(client, onVehicle);
+    RideProgressTracker.tick(client, onVehicle);
 
     wasOnVehicle = onVehicle;
   }
@@ -154,5 +155,6 @@ public final class VehicleRideController {
     lastAlertTick = -NOT_RIDING_ALERT_INTERVAL_TICKS;
     PlayerMovementTracker.reset();
     RideProfiler.reset(client, "reset_transient_state");
+    RideProgressTracker.tick(client, false);
   }
 }

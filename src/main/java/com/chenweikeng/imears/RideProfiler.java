@@ -6,16 +6,10 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
@@ -31,28 +25,14 @@ public final class RideProfiler {
   private static final DateTimeFormatter TS_FMT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
   private static final int SAMPLE_INTERVAL_TICKS = 40;
-  private static final double MARKER_SCAN_RADIUS = 10.0;
-  private static final int MAX_MARKERS_PER_SAMPLE = 64;
-  private static final String UNKNOWN_RIDE_KEY = "unknown";
-  private static final String TRON_LIGHTCYCLE_KEY = "tron-lightcycle";
-  private static final String TRON_LIGHTCYCLE_NAME = "TRON Lightcycle";
-  private static final double TRON_MARKER_MAX_PLAYER_DISTANCE = 1.75;
-  private static final EquipmentSlot[] MARKER_SLOTS = {
-    EquipmentSlot.HEAD,
-    EquipmentSlot.MAINHAND,
-    EquipmentSlot.OFFHAND,
-    EquipmentSlot.CHEST,
-    EquipmentSlot.LEGS,
-    EquipmentSlot.FEET
-  };
 
   private static boolean recording;
   private static JSONObject session;
   private static long startTimeMs;
   private static int tickCounter;
   private static int activeVehicleId = -1;
-  private static String rideKey = UNKNOWN_RIDE_KEY;
-  private static String primaryMarkerKey = UNKNOWN_RIDE_KEY;
+  private static String rideKey = RideMarkerDetector.UNKNOWN_RIDE_KEY;
+  private static String primaryMarkerKey = RideMarkerDetector.UNKNOWN_RIDE_KEY;
   private static int pathSamples;
   private static int markerSnapshots;
 
@@ -143,8 +123,8 @@ public final class RideProfiler {
     startTimeMs = 0;
     tickCounter = 0;
     activeVehicleId = -1;
-    rideKey = UNKNOWN_RIDE_KEY;
-    primaryMarkerKey = UNKNOWN_RIDE_KEY;
+    rideKey = RideMarkerDetector.UNKNOWN_RIDE_KEY;
+    primaryMarkerKey = RideMarkerDetector.UNKNOWN_RIDE_KEY;
     pathSamples = 0;
     markerSnapshots = 0;
   }
@@ -157,8 +137,10 @@ public final class RideProfiler {
     pathSamples = 0;
     markerSnapshots = 0;
 
-    JSONArray initialMarkers = scanMarkers(client, vehicle);
-    RideIdentity identity = identifyRide(initialMarkers);
+    List<RideMarkerDetector.MarkerInfo> initialMarkerInfos =
+        RideMarkerDetector.scanMarkers(client, vehicle);
+    JSONArray initialMarkers = RideMarkerDetector.markersToJson(initialMarkerInfos);
+    RideMarkerDetector.RideIdentity identity = RideMarkerDetector.identifyRide(initialMarkerInfos);
     rideKey = identity.rideKey();
     primaryMarkerKey = identity.primaryMarkerKey();
 
@@ -202,14 +184,15 @@ public final class RideProfiler {
         .put("scoreboardAtEnd", scoreboardJson(client));
 
     JSONObject completed = session;
-    String fileKey = UNKNOWN_RIDE_KEY.equals(rideKey) ? primaryMarkerKey : rideKey;
+    String fileKey =
+        RideMarkerDetector.UNKNOWN_RIDE_KEY.equals(rideKey) ? primaryMarkerKey : rideKey;
     recording = false;
     session = null;
     startTimeMs = 0;
     tickCounter = 0;
     activeVehicleId = -1;
-    rideKey = UNKNOWN_RIDE_KEY;
-    primaryMarkerKey = UNKNOWN_RIDE_KEY;
+    rideKey = RideMarkerDetector.UNKNOWN_RIDE_KEY;
+    primaryMarkerKey = RideMarkerDetector.UNKNOWN_RIDE_KEY;
 
     Thread writer =
         new Thread(() -> writeSession(client, completed, fileKey), "imears-ride-profile-writer");
@@ -267,38 +250,7 @@ public final class RideProfiler {
   }
 
   private static JSONArray scanMarkers(Minecraft client, Entity vehicle) {
-    JSONArray out = new JSONArray();
-    if (client.level == null) {
-      return out;
-    }
-
-    AABB box =
-        new AABB(
-            vehicle.getX() - MARKER_SCAN_RADIUS,
-            vehicle.getY() - MARKER_SCAN_RADIUS,
-            vehicle.getZ() - MARKER_SCAN_RADIUS,
-            vehicle.getX() + MARKER_SCAN_RADIUS,
-            vehicle.getY() + MARKER_SCAN_RADIUS,
-            vehicle.getZ() + MARKER_SCAN_RADIUS);
-
-    List<MarkerInfo> markers = new ArrayList<>();
-    for (ArmorStand armorStand : client.level.getEntitiesOfClass(ArmorStand.class, box)) {
-      for (EquipmentSlot slot : MARKER_SLOTS) {
-        ItemStack stack = armorStand.getItemBySlot(slot);
-        if (stack == null || stack.isEmpty()) {
-          continue;
-        }
-        markers.add(MarkerInfo.from(client.player, vehicle, armorStand, slot, stack));
-      }
-    }
-
-    markers.stream()
-        .sorted(Comparator.comparingDouble(m -> m.distanceToVehicle))
-        .limit(MAX_MARKERS_PER_SAMPLE)
-        .map(MarkerInfo::toJson)
-        .forEach(out::put);
-
-    return out;
+    return RideMarkerDetector.markersToJson(RideMarkerDetector.scanMarkers(client, vehicle));
   }
 
   private static JSONObject scoreboardJson(Minecraft client) {
@@ -342,62 +294,8 @@ public final class RideProfiler {
         .put("z", round3(vehicle.getZ()));
   }
 
-  private static String choosePrimaryMarkerKey(JSONArray markers) {
-    if (markers.isEmpty()) {
-      return "unknown";
-    }
-    JSONObject first = markers.getJSONObject(0);
-    return first.optString("item", "unknown").replace("minecraft:", "")
-        + "_"
-        + first.optInt("damage", 0);
-  }
-
-  private static RideIdentity identifyRide(JSONArray markers) {
-    String markerKey = choosePrimaryMarkerKey(markers);
-    for (int i = 0; i < markers.length(); i++) {
-      JSONObject marker = markers.getJSONObject(i);
-      if (isTronLightcycleMarker(marker)) {
-        return new RideIdentity(
-            TRON_LIGHTCYCLE_KEY,
-            TRON_LIGHTCYCLE_NAME,
-            markerKey,
-            rideEvidence(marker, "nearby_tron_lightcycle_model_marker"));
-      }
-    }
-    return new RideIdentity(
-        UNKNOWN_RIDE_KEY, "", markerKey, new JSONObject().put("reason", "no_known_marker"));
-  }
-
-  private static boolean isTronLightcycleMarker(JSONObject marker) {
-    if (!"minecraft:diamond_pickaxe".equals(marker.optString("item"))) {
-      return false;
-    }
-    if (!"head".equalsIgnoreCase(marker.optString("slot"))) {
-      return false;
-    }
-    int damage = marker.optInt("damage", -1);
-    if (damage != 122 && damage != 377) {
-      return false;
-    }
-    double playerDistance = marker.optDouble("distanceToPlayer", 999.0);
-    return playerDistance <= TRON_MARKER_MAX_PLAYER_DISTANCE;
-  }
-
-  private static JSONObject rideEvidence(JSONObject marker, String reason) {
-    int damage = marker.optInt("damage", -1);
-    return new JSONObject()
-        .put("reason", reason)
-        .put("markerEntityId", marker.optInt("entityId", -1))
-        .put("slot", marker.optString("slot"))
-        .put("item", marker.optString("item"))
-        .put("damage", damage)
-        .put("distanceToPlayer", marker.optDouble("distanceToPlayer", -1.0))
-        .put("distanceToVehicle", marker.optDouble("distanceToVehicle", -1.0))
-        .put("vehicleVariant", damage == 122 ? "classic" : "alternate");
-  }
-
   private static String displayRideKey() {
-    return UNKNOWN_RIDE_KEY.equals(rideKey) ? primaryMarkerKey : rideKey;
+    return RideMarkerDetector.UNKNOWN_RIDE_KEY.equals(rideKey) ? primaryMarkerKey : rideKey;
   }
 
   private static String safeFileName(String value) {
@@ -428,60 +326,6 @@ public final class RideProfiler {
     }
     client.gui.getChat().addClientSystemMessage(Component.literal("\u00A76[IMEARS] \u00A7f" + message));
   }
-
-  private record MarkerInfo(
-      int entityId,
-      String slot,
-      String item,
-      String name,
-      int count,
-      int damage,
-      double distanceToVehicle,
-      double distanceToPlayer,
-      double x,
-      double y,
-      double z) {
-    static MarkerInfo from(
-        Entity player, Entity vehicle, ArmorStand armorStand, EquipmentSlot slot, ItemStack stack) {
-      int damage = 0;
-      try {
-        damage = stack.getDamageValue();
-      } catch (RuntimeException ignored) {
-        // Not all future item stacks necessarily expose damage; keep profiling anyway.
-      }
-      return new MarkerInfo(
-          armorStand.getId(),
-          slot.toString(),
-          stack.getItem().toString(),
-          OpenAudioText.strip(stack.getHoverName().getString()),
-          stack.getCount(),
-          damage,
-          round3(armorStand.distanceTo(vehicle)),
-          player == null ? -1.0 : round3(armorStand.distanceTo(player)),
-          round3(armorStand.getX()),
-          round3(armorStand.getY()),
-          round3(armorStand.getZ()));
-    }
-
-    JSONObject toJson() {
-      return new JSONObject()
-          .put("entityId", entityId)
-          .put("slot", slot)
-          .put("item", item)
-          .put("name", name)
-          .put("count", count)
-          .put("damage", damage)
-          .put("distance", distanceToVehicle)
-          .put("distanceToVehicle", distanceToVehicle)
-          .put("distanceToPlayer", distanceToPlayer)
-          .put("x", x)
-          .put("y", y)
-          .put("z", z);
-    }
-  }
-
-  private record RideIdentity(
-      String rideKey, String rideName, String primaryMarkerKey, JSONObject evidence) {}
 
   private static final class OpenAudioText {
     private OpenAudioText() {}

@@ -35,6 +35,7 @@ public class ImearsClient implements ClientModInitializer {
         (dispatcher, registryAccess) -> {
           registerOaCommand(dispatcher);
           registerRideProfileCommand(dispatcher);
+          registerTronCommand(dispatcher);
           registerImearsCommand(dispatcher);
         });
 
@@ -91,6 +92,26 @@ public class ImearsClient implements ClientModInitializer {
                         context -> {
                           RideProfiler.flush(context.getSource().getClient());
                           return 1;
+                        })));
+  }
+
+  private static void registerTronCommand(
+      CommandDispatcher<FabricClientCommandSource> dispatcher) {
+    dispatcher.register(
+        ClientCommands.literal("tron")
+            .then(
+                ClientCommands.literal("status")
+                    .executes(
+                        context -> {
+                          RideProgressTracker.reportStatus(context.getSource().getClient());
+                          return Command.SINGLE_SUCCESS;
+                        }))
+            .then(
+                ClientCommands.literal("reset")
+                    .executes(
+                        context -> {
+                          RideProgressTracker.resetCommand(context.getSource().getClient());
+                          return Command.SINGLE_SUCCESS;
                         })));
   }
 
