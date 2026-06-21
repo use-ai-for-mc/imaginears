@@ -74,6 +74,36 @@ Profile files are written under the Minecraft instance:
 logs/imears-ride-sessions/
 ```
 
+## HUD Visibility
+
+The helper can hide the same core HUD elements that IMF exposes for cleaner ride capture. The
+defaults mirror IMF's conservative profile: health is hidden, while scoreboard, chat, name tags,
+hotbar, XP level, and crosshair stay visible until changed.
+
+```text
+/imears hud status
+/imears hud hide scoreboard
+/imears hud show scoreboard
+/imears hud toggle chat
+/imears hud crosshair none
+/imears hud crosshair riding
+/imears hud crosshair always
+/imears hud reload
+/imears hud reset
+```
+
+Supported HUD elements are:
+
+```text
+scoreboard chat health nametags hotbar xp
+```
+
+Settings are stored at:
+
+```text
+config/imears/config.json
+```
+
 ## Releases
 
 Releases are cut from Git tags.

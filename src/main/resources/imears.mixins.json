@@ -5,6 +5,9 @@
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [],
 	"client": [
+		"ImearsAvatarRendererMixin",
+		"ImearsEntityRendererMixin",
+		"ImearsGuiMixin",
 		"ImearsMinecraftMixin",
 		"ImearsWindowMixin",
 		"ImearsClientLevelMixin",
