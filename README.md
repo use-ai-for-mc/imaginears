@@ -58,6 +58,11 @@ Ride profiling starts automatically when you mount a vehicle on Imaginears and w
 when you dismount. Profiles include duration, vehicle position samples, nearby armor-stand model
 items, scoreboard snapshots, and system chat seen during the ride.
 
+The profiler currently recognizes TRON Lightcycle vehicles when the mounted player is close to an
+invisible armor stand wearing a `minecraft:diamond_pickaxe` helmet with damage `122` or `377`. Both
+variants are stored under the same `tron-lightcycle` ride key, while the raw marker damage and
+distances are preserved in the profile JSON.
+
 ```text
 /rideprofile status
 /rideprofile flush
