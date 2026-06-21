@@ -40,7 +40,7 @@ public final class RideCountdownHudRenderer {
             formatDuration(remainingSeconds));
 
     Font font = client.font;
-    int timeColor = timeColor(remainingSeconds);
+    int timeColor = opaque(timeColor(remainingSeconds));
     int screenWidth = graphics.guiWidth();
     int textWidth = font.width(displayText);
     int x = (screenWidth - textWidth) / 2;
@@ -55,8 +55,12 @@ public final class RideCountdownHudRenderer {
 
     int fillWidth = barWidth * progress / 100;
     if (fillWidth > 0) {
-      graphics.fill(barX, barY, barX + fillWidth, barY + BAR_HEIGHT, 0xFF000000 | timeColor);
+      graphics.fill(barX, barY, barX + fillWidth, barY + BAR_HEIGHT, timeColor);
     }
+  }
+
+  private static int opaque(int rgb) {
+    return 0xFF000000 | rgb;
   }
 
   private static int timeColor(int remainingSeconds) {
