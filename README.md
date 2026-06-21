@@ -80,7 +80,9 @@ logs/imears-ride-sessions/
 TRON Lightcycle progress tracking uses the collected `tron-lightcycle` ride profiles as reference
 paths. While you are sitting on a recognized TRON vehicle, the tracker matches the current vehicle
 position against the nearest reference path for that vehicle marker variant and estimates progress
-and remaining time.
+and remaining time. The estimate is rendered at the top center of the HUD using the same countdown
+bar style as My MCParks Experience: ride name, percent complete, time left, and a slim colored
+progress bar.
 
 ```text
 /tron status

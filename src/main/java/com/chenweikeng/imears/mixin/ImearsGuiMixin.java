@@ -1,6 +1,7 @@
 package com.chenweikeng.imears.mixin;
 
 import com.chenweikeng.imears.HudVisibility;
+import com.chenweikeng.imears.RideCountdownHudRenderer;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
@@ -14,6 +15,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Gui.class)
 public class ImearsGuiMixin {
+  @Inject(method = "extractRenderState", at = @At("TAIL"))
+  private void imears$extractRideCountdown(
+      GuiGraphicsExtractor extractor, DeltaTracker deltaTracker, CallbackInfo ci) {
+    RideCountdownHudRenderer.extract(extractor);
+  }
+
   @Inject(method = "extractScoreboardSidebar", at = @At("HEAD"), cancellable = true)
   private void imears$hideScoreboard(
       GuiGraphicsExtractor extractor, DeltaTracker deltaTracker, CallbackInfo ci) {
