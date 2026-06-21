@@ -1,5 +1,6 @@
 package com.chenweikeng.imears;
 
+import com.chenweikeng.imears.status.StatusBarController;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
@@ -39,8 +40,8 @@ public final class VehicleRideController {
     tickCursorRelease(client, onVehicle);
     tickWindowMinimize(client, onVehicle);
     tickNotRidingAlert(client, onVehicle);
-    RideProfiler.tick(client, onVehicle);
     RideProgressTracker.tick(client, onVehicle);
+    StatusBarController.getInstance().tick(client);
 
     wasOnVehicle = onVehicle;
   }
@@ -154,7 +155,7 @@ public final class VehicleRideController {
     tickCounter = 0;
     lastAlertTick = -NOT_RIDING_ALERT_INTERVAL_TICKS;
     PlayerMovementTracker.reset();
-    RideProfiler.reset(client, "reset_transient_state");
     RideProgressTracker.tick(client, false);
+    StatusBarController.getInstance().onDisconnect();
   }
 }

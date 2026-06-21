@@ -34,7 +34,6 @@ public class ImearsClient implements ClientModInitializer {
     ClientCommandRegistrationCallback.EVENT.register(
         (dispatcher, registryAccess) -> {
           registerOaCommand(dispatcher);
-          registerRideProfileCommand(dispatcher);
           registerTronCommand(dispatcher);
           registerImearsCommand(dispatcher);
         });
@@ -71,26 +70,6 @@ public class ImearsClient implements ClientModInitializer {
                     .executes(
                         context -> {
                           OpenAudioMcService.getInstance().reportVolume();
-                          return 1;
-                        })));
-  }
-
-  private static void registerRideProfileCommand(
-      CommandDispatcher<FabricClientCommandSource> dispatcher) {
-    dispatcher.register(
-        ClientCommands.literal("rideprofile")
-            .then(
-                ClientCommands.literal("status")
-                    .executes(
-                        context -> {
-                          RideProfiler.reportStatus(context.getSource().getClient());
-                          return 1;
-                        }))
-            .then(
-                ClientCommands.literal("flush")
-                    .executes(
-                        context -> {
-                          RideProfiler.flush(context.getSource().getClient());
                           return 1;
                         })));
   }

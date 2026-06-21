@@ -7,7 +7,8 @@ A small client-side Fabric helper for Imaginears Club on Minecraft 26.1.
 - Auto-requests and opens the Imaginears audio client through a hidden native WebView helper.
 - Detects OpenAudioMC session links from `session.openaudiomc.net` and `audio.imaginears.club`.
 - Adds `/oa connect`, `/oa disconnect`, `/oa reconnect`, and `/oa volume` client commands.
-- Records raw ride profiles to help learn Imaginears ride markers and timings.
+- Estimates TRON Lightcycle progress and remaining time from bundled reference paths.
+- Shows the TRON countdown in-game and through the native status helper.
 - Releases the mouse cursor while riding vehicles, then restores normal mouse capture afterward.
 - Suppresses most positional Minecraft sounds while riding, while allowing the ride-complete chime.
 - Gates behavior to `iears.us` and `*.iears.us` servers.
@@ -53,36 +54,17 @@ Restart Minecraft after replacing the jar. Fabric only loads mods during client 
 
 The mod also schedules an automatic `/audio` request shortly after joining an Imaginears server.
 
-## Ride Profiling
-
-Ride profiling starts automatically when you mount a vehicle on Imaginears and writes a JSON file
-when you dismount. Profiles include duration, vehicle position samples, nearby armor-stand model
-items, scoreboard snapshots, and system chat seen during the ride.
-
-The profiler currently recognizes TRON Lightcycle vehicles when the mounted player is close to an
-invisible armor stand wearing a `minecraft:diamond_pickaxe` helmet with damage `122` or `377`. Both
-variants are stored under the same `tron-lightcycle` ride key, while the raw marker damage and
-distances are preserved in the profile JSON.
-
-```text
-/rideprofile status
-/rideprofile flush
-```
-
-Profile files are written under the Minecraft instance:
-
-```text
-logs/imears-ride-sessions/
-```
-
 ## TRON Progress
 
-TRON Lightcycle progress tracking uses the collected `tron-lightcycle` ride profiles as reference
-paths. While you are sitting on a recognized TRON vehicle, the tracker matches the current vehicle
-position against the nearest reference path for that vehicle marker variant and estimates progress
-and remaining time. The estimate is rendered at the top center of the HUD using the same countdown
-bar style as My MCParks Experience: ride name, percent complete, time left, and a slim colored
-progress bar.
+TRON Lightcycle progress tracking uses bundled `tron-lightcycle` reference paths learned from
+earlier ride sessions. While you are sitting on a recognized TRON vehicle, the tracker matches the
+current vehicle position against the nearest reference path for that vehicle marker variant and
+estimates progress and remaining time.
+
+The estimate is rendered at the top center of the HUD using the same countdown bar style as My
+MCParks Experience: ride name, percent complete, time left, and a slim colored progress bar. The
+same remaining-time countdown is also sent to the native status helper, which appears as a macOS
+menu bar item or Windows taskbar-adjacent overlay while a TRON estimate is active.
 
 ```text
 /tron status
@@ -93,12 +75,6 @@ The bundled reference data is stored at:
 
 ```text
 assets/imears/rides/tron-lightcycle-reference.json
-```
-
-To regenerate it after collecting more profiles:
-
-```bash
-python3 tools/build-tron-reference.py "/path/to/minecraft/logs/imears-ride-sessions"
 ```
 
 ## HUD Visibility

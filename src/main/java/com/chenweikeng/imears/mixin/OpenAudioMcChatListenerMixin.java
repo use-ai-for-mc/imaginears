@@ -1,7 +1,6 @@
 package com.chenweikeng.imears.mixin;
 
 import com.chenweikeng.imears.ServerState;
-import com.chenweikeng.imears.RideProfiler;
 import com.chenweikeng.imears.audio.OpenAudioMcService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.chat.ChatListener;
@@ -22,8 +21,6 @@ public class OpenAudioMcChatListenerMixin {
     if (message == null || !ServerState.isImaginearsServer(Minecraft.getInstance())) {
       return;
     }
-
-    RideProfiler.recordChatMessage(message, overlay);
 
     String messageText = OpenAudioMcService.stripLegacyFormatting(message.getString());
     OpenAudioMcService service = OpenAudioMcService.getInstance();
