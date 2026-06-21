@@ -51,6 +51,11 @@ public final class ImearsConfig {
     save();
   }
 
+  public static void replace(Settings settings) {
+    current = settings == null ? new Settings() : settings.copy();
+    save();
+  }
+
   public static String setHudElement(String element, boolean hidden) {
     return current.setHudElement(element, hidden);
   }
@@ -67,6 +72,18 @@ public final class ImearsConfig {
     public boolean hideHotbar = false;
     public boolean hideExperienceLevel = false;
     public HideCrosshairMode hideCrosshairMode = HideCrosshairMode.NONE;
+
+    public Settings copy() {
+      Settings copy = new Settings();
+      copy.hideScoreboard = hideScoreboard;
+      copy.hideChat = hideChat;
+      copy.hideHealth = hideHealth;
+      copy.hideNameTags = hideNameTags;
+      copy.hideHotbar = hideHotbar;
+      copy.hideExperienceLevel = hideExperienceLevel;
+      copy.hideCrosshairMode = hideCrosshairMode;
+      return copy;
+    }
 
     static Settings fromJson(JSONObject json) {
       Settings settings = new Settings();

@@ -1,6 +1,7 @@
 package com.chenweikeng.imears;
 
 import com.chenweikeng.imears.audio.OpenAudioMcService;
+import com.chenweikeng.imears.config.ClothConfigScreen;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -97,6 +98,18 @@ public class ImearsClient implements ClientModInitializer {
       CommandDispatcher<FabricClientCommandSource> dispatcher) {
     dispatcher.register(
         ClientCommands.literal("imears")
+            .then(
+                ClientCommands.literal("config")
+                    .executes(
+                        context -> {
+                          context
+                              .getSource()
+                              .getClient()
+                              .setScreen(
+                                  ClothConfigScreen.createScreen(
+                                      context.getSource().getClient().screen));
+                          return Command.SINGLE_SUCCESS;
+                        }))
             .then(
                 ClientCommands.literal("hud")
                     .then(

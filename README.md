@@ -17,6 +17,7 @@ A small client-side Fabric helper for Imaginears Club on Minecraft 26.1.
 - Minecraft `26.1`
 - Fabric Loader `0.19.2` or newer
 - Fabric API for Minecraft 26.1
+- Cloth Config for Minecraft 26.1
 - Java 25
 
 ## Build
@@ -76,9 +77,16 @@ logs/imears-ride-sessions/
 
 ## HUD Visibility
 
-The helper can hide the same core HUD elements that IMF exposes for cleaner ride capture. The
-defaults mirror IMF's conservative profile: health is hidden, while scoreboard, chat, name tags,
-hotbar, XP level, and crosshair stay visible until changed.
+The helper can hide the same core HUD elements that IMF exposes for cleaner ride capture. Open the
+config UI through ModMenu or directly in-game:
+
+```text
+/imears config
+```
+
+The defaults mirror IMF's conservative profile: health is hidden, while scoreboard, chat, name tags,
+hotbar, XP level, and crosshair stay visible until changed. The command surface remains available
+for quick changes:
 
 ```text
 /imears hud status

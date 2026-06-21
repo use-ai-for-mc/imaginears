@@ -12,6 +12,9 @@
 	"entrypoints": {
 		"client": [
 			"com.chenweikeng.imears.ImearsClient"
+		],
+		"modmenu": [
+			"com.chenweikeng.imears.config.ModMenuApiImpl"
 		]
 	},
 	"mixins": [
@@ -20,7 +23,11 @@
 	"depends": {
 		"fabricloader": ">=0.19.2",
 		"fabric-api": "*",
+		"cloth-config": "*",
 		"minecraft": "~26.1",
 		"java": ">=25"
+	},
+	"suggests": {
+		"modmenu": "*"
 	}
 }
